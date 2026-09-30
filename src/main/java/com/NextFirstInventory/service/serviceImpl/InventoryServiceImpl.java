@@ -3,7 +3,7 @@ package com.NextFirstInventory.service.serviceImpl;
 import com.NextFirstInventory.dto.InventoryItemDto;
 import com.NextFirstInventory.dto.InventorySyncResult;
 import com.NextFirstInventory.entity.GoogleSheetLinkEntity;
-import com.NextFirstInventory.entity.InventoryEntity;
+import com.NextFirstInventory.entity.InventoryItemEntity;
 import com.NextFirstInventory.repository.GoogleSheetLinkRepository;
 import com.NextFirstInventory.repository.InventoryRepository;
 import com.NextFirstInventory.service.InventoryService;
@@ -22,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -76,12 +77,15 @@ public class InventoryServiceImpl implements InventoryService {
         }
 
         try {
-            List<InventoryEntity> importedItems = new ArrayList<>();
+            List<InventoryItemEntity> importedItems = new ArrayList<>();
             int tabCount = 0;
             for (GoogleSheetLinkEntity link : savedLinks) {
+                String stockGroup = link.getName() == null || link.getName().isBlank()
+                    ? "Sheet " + link.getSheetId()
+                    : link.getName().trim();
                 importedItems.addAll(parseCsv(
                         downloadTab(link.getSpreadsheetId(), link.getSheetId()),
-                        "Sheet " + link.getSheetId()));
+                    stockGroup));
                 tabCount++;
             }
 
@@ -214,7 +218,7 @@ public class InventoryServiceImpl implements InventoryService {
         return body;
     }
 
-    List<InventoryEntity> parseCsv(String csv, String tabTitle) {
+    List<InventoryItemEntity> parseCsv(String csv, String stockGroup) {
         List<String> lines = csv.lines().filter(line -> !line.isBlank()).toList();
         if (lines.size() < 2) {
             return List.of();
@@ -224,44 +228,43 @@ public class InventoryServiceImpl implements InventoryService {
         Map<String, Integer> columns = headers.stream()
                 .collect(Collectors.toMap(Function.identity(), headers::indexOf, (first, ignored) -> first));
 
-        List<InventoryEntity> items = new ArrayList<>();
+        List<InventoryItemEntity> items = new ArrayList<>();
         for (String line : lines.subList(1, lines.size())) {
             List<String> values = parseLine(line);
-            items.add(InventoryEntity.builder()
-                    .description(value(values, columns, "description"))
-                        .modelNo(value(values, columns, "modelnumber", "modelno", "model"))
-                        .partNo(value(values, columns, "partnumber", "partno", "part"))
+            items.add(InventoryItemEntity.builder()
+                    .stockGroup(stockGroup)
+                    .batchName(value(values, columns, "batchname"))
+                    .itemName(value(values, columns, "itemname", "description"))
+                    .partNumber(value(values, columns, "partnumber", "partno", "part"))
                     .make(value(values, columns, "make", "manufacturer", "brand"))
-                        .rackNo(value(values, columns, "racknumber", "rackno", "racknoa", "racknob", "rack"))
-                        .stockQty(parseQuantity(value(values, columns, "quantity", "qty", "stockqty", "stockquantity")))
-                        .stockStatus(value(values, columns, "condition", "stockstatus", "status"))
-                    .location(defaultValue(value(values, columns, "location", "warehouse"), tabTitle))
+                    .rackNumber(value(values, columns, "racknumber", "rackno", "racknoa", "racknob", "rack"))
+                    .quantity(parseQuantity(value(values, columns, "quantity", "qty", "stockqty", "stockquantity")))
+                    .rate(parseDecimal(value(values, columns, "rate")))
+                    .value(parseDecimal(value(values, columns, "value", "amount")))
                     .build());
         }
         return items;
     }
 
-    private String defaultValue(String value, String fallback) {
-        return value.isBlank() ? fallback : value;
-    }
-
-    private InventoryItemDto toDto(InventoryEntity item) {
+    private InventoryItemDto toDto(InventoryItemEntity item) {
         return InventoryItemDto.builder()
                 .id(item.getId())
-                .description(item.getDescription())
-                .modelNumber(item.getModelNo())
-                .partNumber(item.getPartNo())
+            .stockGroup(item.getStockGroup())
                 .make(item.getMake())
-                .rackNumber(item.getRackNo())
-                .quantity(item.getStockQty())
-                .condition(item.getStockStatus())
-                .location(item.getLocation())
+                .batchName(item.getBatchName())
+                .itemName(item.getItemName())
+                .partNumber(item.getPartNumber())
+                .quantity(item.getQuantity())
+                .rate(item.getRate())
+                .value(item.getValue())
+                .rackNumber(item.getRackNumber())
                 .build();
     }
 
-    private String searchableText(InventoryEntity item) {
-        return String.join(" ", item.getDescription(), item.getModelNo(), item.getPartNo(),
-                item.getMake(), item.getRackNo())
+    private String searchableText(InventoryItemEntity item) {
+        return String.join(" ", item.getStockGroup(), item.getMake(), item.getBatchName(), item.getItemName(), item.getPartNumber(),
+            String.valueOf(item.getQuantity()), String.valueOf(item.getRate()), String.valueOf(item.getValue()),
+            item.getRackNumber())
                 .toLowerCase(Locale.ROOT);
     }
 
@@ -280,6 +283,14 @@ public class InventoryServiceImpl implements InventoryService {
             return value.isBlank() ? 0 : Integer.valueOf(value.replace(",", "").trim());
         } catch (NumberFormatException ignored) {
             return 0;
+        }
+    }
+
+    private BigDecimal parseDecimal(String value) {
+        try {
+            return value.isBlank() ? null : new BigDecimal(value.replace(",", "").trim());
+        } catch (NumberFormatException ignored) {
+            return null;
         }
     }
 

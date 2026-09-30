@@ -3,7 +3,7 @@ package com.NextFirstInventory.service.serviceImpl;
 import com.NextFirstInventory.dto.InventoryItemDto;
 import com.NextFirstInventory.dto.InventorySearchRequest;
 import com.NextFirstInventory.dto.InventorySearchResponse;
-import com.NextFirstInventory.entity.InventoryEntity;
+import com.NextFirstInventory.entity.InventoryItemEntity;
 import com.NextFirstInventory.repository.InventoryRepository;
 import com.NextFirstInventory.service.InventorySearchService;
 import org.springframework.data.domain.Page;
@@ -24,15 +24,15 @@ import java.util.Map;
 public class InventorySearchServiceImpl implements InventorySearchService {
 
     private static final Map<String, String> FIELDS = Map.ofEntries(
-            Map.entry("id", "id"),
-            Map.entry("description", "description"),
-            Map.entry("modelNumber", "modelNo"),
-            Map.entry("partNumber", "partNo"),
+            Map.entry("stockGroup", "stockGroup"),
             Map.entry("make", "make"),
-            Map.entry("rackNumber", "rackNo"),
-            Map.entry("quantity", "stockQty"),
-            Map.entry("condition", "stockStatus"),
-            Map.entry("location", "location"));
+            Map.entry("batchName", "batchName"),
+            Map.entry("itemName", "itemName"),
+            Map.entry("partNumber", "partNumber"),
+            Map.entry("quantity", "quantity"),
+            Map.entry("rate", "rate"),
+            Map.entry("value", "value"),
+            Map.entry("rackNumber", "rackNumber"));
 
     private final InventoryRepository inventoryRepository;
 
@@ -45,7 +45,7 @@ public class InventorySearchServiceImpl implements InventorySearchService {
         int page = request.page() == null ? 0 : Math.max(0, request.page());
         int size = request.size() == null ? 25 : Math.max(1, Math.min(request.size(), 100));
         String sortBy = request.sortBy() == null || request.sortBy().isBlank()
-                ? "description"
+            ? "itemName"
                 : request.sortBy();
         String entitySortField = FIELDS.get(sortBy);
         if (entitySortField == null) {
@@ -61,7 +61,7 @@ public class InventorySearchServiceImpl implements InventorySearchService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sort direction must be asc or desc");
         }
 
-        Specification<InventoryEntity> specification = (root, query, criteriaBuilder) -> {
+        Specification<InventoryItemEntity> specification = (root, query, criteriaBuilder) -> {
             var predicates = new ArrayList<Predicate>();
             String globalQuery = normalize(request.query());
             if (!globalQuery.isEmpty()) {
@@ -92,7 +92,7 @@ public class InventorySearchServiceImpl implements InventorySearchService {
         };
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, entitySortField));
-        Page<InventoryEntity> results = inventoryRepository.findAll(specification, pageable);
+        Page<InventoryItemEntity> results = inventoryRepository.findAll(specification, pageable);
         return new InventorySearchResponse(
                 results.getContent().stream().map(this::toDto).toList(),
                 results.getTotalElements(),
@@ -101,17 +101,18 @@ public class InventorySearchServiceImpl implements InventorySearchService {
                 results.getSize());
     }
 
-    private InventoryItemDto toDto(InventoryEntity item) {
+    private InventoryItemDto toDto(InventoryItemEntity item) {
         return InventoryItemDto.builder()
                 .id(item.getId())
-                .description(item.getDescription())
-                .modelNumber(item.getModelNo())
-                .partNumber(item.getPartNo())
+            .stockGroup(item.getStockGroup())
                 .make(item.getMake())
-                .rackNumber(item.getRackNo())
-                .quantity(item.getStockQty())
-                .condition(item.getStockStatus())
-                .location(item.getLocation())
+                .batchName(item.getBatchName())
+                .itemName(item.getItemName())
+                .partNumber(item.getPartNumber())
+                .quantity(item.getQuantity())
+                .rate(item.getRate())
+                .value(item.getValue())
+                .rackNumber(item.getRackNumber())
                 .build();
     }
 

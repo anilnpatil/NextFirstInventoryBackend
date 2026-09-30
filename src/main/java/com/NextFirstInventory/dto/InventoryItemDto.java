@@ -1,5 +1,6 @@
 package com.NextFirstInventory.dto;
 
+import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -14,12 +15,13 @@ import lombok.Setter;
 public class InventoryItemDto {
 
     private Long id;
-    private String description;
-    private String modelNumber;
-    private String partNumber;
+    private String stockGroup;
     private String make;
-    private String rackNumber;
+    private String batchName;
+    private String itemName;
+    private String partNumber;
     private Integer quantity;
-    private String condition;
-    private String location;
+    private BigDecimal rate;
+    private BigDecimal value;
+    private String rackNumber;
 }

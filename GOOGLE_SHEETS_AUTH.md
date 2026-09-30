@@ -42,7 +42,7 @@ The PowerShell environment variable above applies only to processes started from
      <executable>C:\Program Files\Java\jdk-17\bin\java.exe</executable>
    <arguments>-jar "C:\Services\NextFirstInventory\NextFirstInventory.jar"</arguments>
      <workingdirectory>C:\Services\NextFirstInventory</workingdirectory>
-     <env name="GOOGLE_APPLICATION_CREDENTIALS" value="C:\secure\sheets-reader-service-account.json" />
+     < />
      <logpath>C:\Services\NextFirstInventory\logs</logpath>
      <log mode="roll" />
      <onfailure action="restart" delay="10 sec" />
@@ -50,7 +50,7 @@ The PowerShell environment variable above applies only to processes started from
    </service>
    ```
 
-3. Configure the service to log on as a dedicated Windows account using Services (`services.msc`), rather than granting broad access to the credential. Give that account read access to the JSON key and write access to the service log directory. Keep the key and service deployment files outside source control.
+3. Configure the service to log on as a dedicated Windowsenv name="GOOGLE_APPLICATION_CREDENTIALS" value="C:\secure\sheets-reader-service-account.json" account using Services (`services.msc`), rather than granting broad access to the credential. Give that account read access to the JSON key and write access to the service log directory. Keep the key and service deployment files outside source control.
 4. From an elevated PowerShell window, install and start the service:
 
    ```powershell
